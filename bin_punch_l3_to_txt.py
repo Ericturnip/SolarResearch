@@ -101,7 +101,7 @@ def process_punch_l3_to_txt(input_fits, output_txt, bin_size_deg=1.0):
 
     # --- 7. FILTER AND SAVE ---
     # Filter valid data (not NaN, >0, not saturated stars >2000)
-    valid_mask = (~np.isnan(res_s10)) & (res_s10 > 0) & (res_s10 < 2000)
+    valid_mask = (~np.isnan(res_s10)) & (res_s10 != 0)
 
     clean_ra = res_ra[valid_mask]
     clean_dec = res_dec[valid_mask]
