@@ -7,7 +7,7 @@ where each pixel represents ~1° x 1° in the original helioprojective
 (HPLN/HPLT) coordinates, using a median within each block to reduce starlight.
 
 Usage:
-    python bin_punch_l2_to_1deg.py input.fits output_1deg.fits
+    python bin_punch_l3_to_1deg.py input.fits output_1deg.fits
 """
 
 import sys

@@ -9,7 +9,8 @@ def plot_heatmap(filename):
     # We skip the first row (date header) and use whitespace as the separator
     try:
         df = pd.read_csv(filename, delim_whitespace=True, skiprows=1, 
-                         names=['ID', 'RA', 'DEC', 'Brightness'])
+                        names=['ID', 'RA', 'DEC', 'Brightness', 'Time'],
+                        usecols=['ID', 'RA', 'DEC', 'Brightness'])
     except Exception as e:
         print(f"Error reading file: {e}")
         return
