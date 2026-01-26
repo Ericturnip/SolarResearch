@@ -20,8 +20,8 @@ def plot_heatmap(filename):
     # Typical K-Corona is 10-100 S10. Stars are >1000.
     # We set vmin=0 to ignore negative subtraction artifacts.
     # We set vmax=150 to highlight the solar wind structure.
-    vmin = 0
-    vmax = 150 
+    vmin = -100
+    vmax = 150
 
     print(f"Plotting {len(df)} points...")
     print(f"Color scale clipped to: {vmin} - {vmax} S10 units (to hide stars)")
