@@ -120,7 +120,7 @@ def process_punch_l3s_percentile_stack(input_fits_list, bin_size_deg=1.0, percen
         flat_s10 = (flat_data / S10_COEFF)
         
         # Filter: Exclude NaNs, Saturated, and EXACT ZEROS
-        valid_pixel_mask = (~np.isnan(flat_s10)) & (flat_s10 < 2000) & (flat_s10 > -1000) & (flat_s10 != 0)
+        valid_pixel_mask = (~np.isnan(flat_s10)) & (flat_s10 < 200) & (flat_s10 > -50) & (flat_s10 != 0)
         
         img_binned = binned_statistic_2d(
             curr_hpln[valid_pixel_mask], 
