@@ -21,7 +21,7 @@ def plot_heatmap(filename):
     # We set vmin=0 to ignore negative subtraction artifacts.
     # We set vmax=150 to highlight the solar wind structure.
     vmin = -100
-    vmax = 150
+    vmax = 500
 
     print(f"Plotting {len(df)} points...")
     print(f"Color scale clipped to: {vmin} - {vmax} S10 units (to hide stars)")
