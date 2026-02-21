@@ -57,7 +57,7 @@ BUILD_SEAM_MASK = True
 SEAM_BAD_FRAC = 0.6
 
 # Output
-OUT_DIR = "out_cleaned_v2_aggressive"
+OUT_DIR = os.environ.get("OUT_DIR", "out_cleaned_per_frame_hardmask")
 
 
 # -----------------------
@@ -194,6 +194,15 @@ def bin_one_frame(data, wcs_solar, x_idx, y_idx, x_bins, y_bins, stat="median"):
     }
 
     vx = hpln[keep_pix]; vy = hplt[keep_pix]; vv = flat_s10[keep_pix]
+
+    # Guard: if the pixel filter removes everything, skip gracefully.
+    # This prevents SciPy from crashing with "zero-size array to reduction operation minimum".
+    if vx.size == 0 or vy.size == 0 or vv.size == 0:
+        ny = len(y_bins) - 1
+        nx = len(x_bins) - 1
+        I = np.full((ny, nx), np.nan, dtype=np.float32)
+        N = np.zeros((ny, nx), dtype=np.float32)
+        return I, N, diag
 
     N = binned_statistic_2d(vx, vy, vv, statistic="count", bins=[x_bins, y_bins]).statistic.T.astype(np.float32)
 
