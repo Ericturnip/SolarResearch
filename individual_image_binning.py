@@ -411,7 +411,6 @@ def process_all(fits_files):
             print(f"    [FRAME] {os.path.basename(p)} -> bad_bins_masked={n_bins_bad}")
 
             frame_ts = get_timestamp_from_header(header)
-            hour_ts = hour_key.replace(":", "").replace("-", "").replace("T", "")[:10]
             
             # Apply the desired naming convention directly
             out_name = f"PUNCH_L3_CIM_{frame_ts}_CLEANED.txt"
