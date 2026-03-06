@@ -322,11 +322,10 @@ def build_bad_mask(I_k, H_t, N_k, seam_mask=None):
 
     return M, Diff, Z
 
-
 # -----------------------
 # Output
 # -----------------------
-def write_ascii_points(output_path, t_ref, wcs_solar_ref, wcs_radec_ref,
+def write_ascii_points(output_path, t_frame, wcs_solar_ref, wcs_radec_ref,
                        bin_hpln_centers, bin_hplt_centers, values_map, point_time_iso):
     res_s10 = values_map.ravel()
     res_hpln = bin_hpln_centers.ravel()
@@ -338,7 +337,9 @@ def write_ascii_points(output_path, t_ref, wcs_solar_ref, wcs_radec_ref,
     res_ra, res_dec = wcs_radec_ref.pixel_to_world_values(target_pix_x, target_pix_y)
 
     valid_mask = np.isfinite(res_s10) & np.isfinite(res_ra) & np.isfinite(res_dec)
-    header_date_string = year_doy_fraction_string(t_ref)
+    
+    # Use the current frame's time for the header instead of the global grid time
+    header_date_string = year_doy_fraction_string(t_frame)
 
     with open(output_path, "w") as f:
         f.write(f"{header_date_string}\n")
@@ -411,11 +412,13 @@ def process_all(fits_files):
 
             frame_ts = get_timestamp_from_header(header)
             hour_ts = hour_key.replace(":", "").replace("-", "").replace("T", "")[:10]
-            out_name = f"PUNCH_L3_CLEAN_V2_{frame_ts}_H{hour_ts}.txt"
+            
+            # Apply the desired naming convention directly
+            out_name = f"PUNCH_L3_CIM_{frame_ts}_CLEANED.txt"
             
             pts = write_ascii_points(
                 os.path.join(OUT_DIR, out_name),
-                t_ref=grid["t_ref"],
+                t_frame=t, # Pass the current frame's time to generate the correct header
                 wcs_solar_ref=wcs_solar,
                 wcs_radec_ref=grid["wcs_radec_ref"],
                 bin_hpln_centers=grid["bin_hpln_centers"],
