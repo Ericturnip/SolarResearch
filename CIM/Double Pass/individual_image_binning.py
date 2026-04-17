@@ -344,7 +344,7 @@ def write_ascii_points(output_path, t_frame, wcs_solar_ref, wcs_radec_ref,
     with open(output_path, "w") as f:
         f.write(f"{header_date_string}\n")
         for r, d, b in zip(res_ra[valid_mask], res_dec[valid_mask], res_s10[valid_mask]):
-            f.write(f"L3  {r:6.2f} {d:6.2f}  {b:6.2f} {point_time_iso}\n")
+            f.write(f"L3  {r:6.2f} {d:6.2f}{b:8.2f} {point_time_iso}\n")
 
     return int(np.sum(valid_mask))
 

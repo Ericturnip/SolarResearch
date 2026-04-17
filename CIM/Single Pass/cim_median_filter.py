@@ -160,7 +160,7 @@ def process_files(fits_files):
             
             # Data lines
             for r, d, b in zip(res_ra[flat_valid], res_dec[flat_valid], res_s10[flat_valid]):
-                f.write(f"L3  {r:6.2f} {d:6.2f}  {b:6.2f} {t.to_datetime().isoformat()}\n")
+                f.write(f"L3  {r:6.2f} {d:6.2f}{b:8.2f} {t.to_datetime().isoformat()}\n")
 
 if __name__ == "__main__":
     # You can pass files via command line args, or it will grab all FITS in the dir

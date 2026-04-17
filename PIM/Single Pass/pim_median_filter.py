@@ -200,7 +200,7 @@ def process_files(fits_files):
         with open(out_path, "w") as f:
             f.write(f"{t.to_datetime().year} {t.jd - Time(f'{t.to_datetime().year}-01-01').jd + 1.0:.8f}\n")
             for r, d, b in zip(res_ra[valid_mask], res_dec[valid_mask], res_s10[valid_mask]):
-                f.write(f"L3  {r:6.2f} {d:6.2f}  {b:6.2f} {t.to_datetime().isoformat()}\n")
+                f.write(f"L3  {r:6.2f} {d:6.2f}{b:8.2f} {t.to_datetime().isoformat()}\n")
 
 if __name__ == "__main__":
     files = sorted(glob.glob("*.fits")) if len(sys.argv) == 1 else sys.argv[1:]
