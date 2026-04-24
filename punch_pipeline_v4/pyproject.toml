@@ -1,0 +1,13 @@
+[project]
+name = "punch-pipeline-v4"
+version = "0.1.0"
+description = "Clean scaffold for PUNCH binned median/composite/second-pass processing"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "astropy",
+  "scipy",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
