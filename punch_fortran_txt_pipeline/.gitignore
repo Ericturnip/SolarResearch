@@ -1,0 +1,17 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Generated data products and temporary downloads.
+outputs/
+*.fits
+*.fit
+*.fts
+*.part
+
+# Local logs or shell history.
+*.log

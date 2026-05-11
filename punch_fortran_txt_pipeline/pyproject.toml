@@ -1,0 +1,15 @@
+[project]
+name = "punch-fortran-txt-pipeline"
+version = "0.1.0"
+description = "PUNCH CTM/PTM hourly p25 pipeline for fixed-width Fortran tomography TXT files"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "astropy",
+  "scipy",
+  "pandas",
+  "matplotlib",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
