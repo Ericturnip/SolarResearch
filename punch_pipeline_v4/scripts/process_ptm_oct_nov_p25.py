@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Legacy PTM-only batch runner.
-
-The generic product runner now handles PTM too. This file stays around for old
-commands and direct PTM checks.
-"""
 from __future__ import annotations
 
 import argparse
@@ -92,7 +87,7 @@ def process_hour(
                 grid_cache[key] = prepare_grid(frame, bin_size_deg)
                 print(f"[grid-cache] cached PTM grid #{len(grid_cache)} shape={grid_cache[key].shape}", flush=True)
             bmaps.append(median_bin_fast(frame, grid_cache[key]))
-        except Exception as exc:  # noqa: BLE001 - one bad frame should not cost the whole hour.
+        except Exception as exc:  # noqa: BLE001 - bad frame should not stop the run.
             print(f"[process-file-failed] {path.name}: {exc}", flush=True)
 
     if not bmaps:
@@ -156,28 +151,28 @@ def process_hour_job(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Download PTM files from NASA and write hourly p25-nearest-real-sample TXT maps."
+        description="Download and process PTM Oct/Nov hourly p25 composites into daily TXT folders."
     )
-    parser.add_argument("--start-date", default="2025-10-01", help="First UTC day to process, YYYY-MM-DD.")
-    parser.add_argument("--end-date", default="2025-11-30", help="Last UTC day to process, YYYY-MM-DD.")
+    parser.add_argument("--start-date", default="2025-10-01", help="YYYY-MM-DD inclusive")
+    parser.add_argument("--end-date", default="2025-11-30", help="YYYY-MM-DD inclusive")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--layer", default=DEFAULT_LAYER)
     parser.add_argument("--output-root", default=str(ROOT / "outputs" / "ptm_hourly_p25"))
     parser.add_argument("--cache-root", default=str(ROOT / "outputs" / "_ptm_download_cache"))
-    parser.add_argument("--download-workers", type=int, default=8, help="Parallel FITS downloads inside each hour.")
-    parser.add_argument("--hour-workers", type=int, default=1, help="Hours to download and process at the same time.")
+    parser.add_argument("--download-workers", type=int, default=8, help="Parallel downloads per hour")
+    parser.add_argument("--hour-workers", type=int, default=1, help="Number of hours to download/process at once")
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--retries", type=int, default=4)
     parser.add_argument("--bin-size-deg", type=float, default=1.0)
-    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour finishes.")
-    parser.add_argument("--overwrite", action="store_true", help="Rebuild TXT files that already exist.")
+    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour")
+    parser.add_argument("--overwrite", action="store_true", help="Reprocess hours whose TXT already exists")
     parser.add_argument("--min-files-per-hour", type=int, default=1)
     parser.add_argument(
         "--hour-filter",
         default="",
-        help="Regex matched against YYYYMMDDHH, useful for a tiny test run.",
+        help="Optional regex matched against YYYYMMDDHH hour keys, useful for small test runs",
     )
-    parser.add_argument("--max-hours", type=int, default=0, help="Stop after this many written hours; 0 means no cap.")
+    parser.add_argument("--max-hours", type=int, default=0, help="Optional cap on processed hours")
     args = parser.parse_args()
 
     start = parse_ymd(args.start_date)
@@ -262,7 +257,7 @@ def main() -> None:
                         else:
                             totals["hours_skipped"] += 1
                         print(f"[hour-done] {hour_key} files={file_count} seconds={elapsed:.1f}", flush=True)
-                    except Exception as exc:  # noqa: BLE001 - report the bad hour and keep the batch moving.
+                    except Exception as exc:  # noqa: BLE001 - keep overnight run moving.
                         totals["hours_skipped"] += 1
                         print(f"[hour-failed] {hour_key}: {exc}", flush=True)
 

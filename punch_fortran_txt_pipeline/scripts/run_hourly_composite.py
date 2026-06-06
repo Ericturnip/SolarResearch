@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Build one composite TXT from a hand-picked set of FITS files."""
 from __future__ import annotations
 
 import argparse
@@ -17,18 +18,23 @@ from punch_pipeline_v4.writers.ascii import write_tomography_txt
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Build one-hour binned composite from PUNCH FITS files")
-    ap.add_argument("--input-glob", required=True)
+    ap = argparse.ArgumentParser(description="Build one binned composite TXT from a FITS glob.")
+    ap.add_argument("--input-glob", required=True, help="Quoted glob for the FITS files to combine.")
     ap.add_argument("--product", required=True, choices=["CIM", "CTM", "PIM", "PTM", "PAM"])
-    ap.add_argument("--layer", required=True)
-    ap.add_argument("--output-dir", default=str(ROOT / "outputs" / "composite"))
-    ap.add_argument("--bin-size-deg", type=float, default=1.0)
-    ap.add_argument("--composite-method", default="nanmedian", choices=["nanmedian", "nanmean", "nanmin", "p30", "percentile"])
-    ap.add_argument("--percentile", type=float, default=30.0)
-    ap.add_argument("--convert-to-s10", action="store_true")
-    ap.add_argument("--drop-zero-bins", action=argparse.BooleanOptionalAction, default=True)
-    ap.add_argument("--drop-zero-before-stat", action=argparse.BooleanOptionalAction, default=True)
-    ap.add_argument("--positive-only", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--layer", required=True, help="Layer to read, for example brightness or Polar_pB.")
+    ap.add_argument("--output-dir", default=str(ROOT / "outputs" / "composite"), help="Folder for the TXT output.")
+    ap.add_argument("--bin-size-deg", type=float, default=1.0, help="Sky-bin size in degrees.")
+    ap.add_argument(
+        "--composite-method",
+        default="nanmedian",
+        choices=["nanmedian", "nanmean", "nanmin", "p30", "percentile"],
+        help="Statistic to use across the input files.",
+    )
+    ap.add_argument("--percentile", type=float, default=30.0, help="Percentile used when --composite-method percentile.")
+    ap.add_argument("--convert-to-s10", action="store_true", help="Convert native brightness to S10 before writing.")
+    ap.add_argument("--drop-zero-bins", action=argparse.BooleanOptionalAction, default=True, help="Omit bins that print as zero.")
+    ap.add_argument("--drop-zero-before-stat", action=argparse.BooleanOptionalAction, default=True, help="Treat zeros as missing before compositing.")
+    ap.add_argument("--positive-only", action=argparse.BooleanOptionalAction, default=False, help="Omit negative S10 values.")
     args = ap.parse_args()
 
     files = sorted(glob.glob(args.input_glob))

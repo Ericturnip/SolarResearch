@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Bin one FITS file to the tomography TXT grid for quick inspection."""
 from __future__ import annotations
 
 import argparse
@@ -15,15 +16,15 @@ from punch_pipeline_v4.writers.ascii import write_tomography_txt
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Median-bin one PUNCH image to 1x1 degree TXT")
-    ap.add_argument("--input", required=True)
+    ap = argparse.ArgumentParser(description="Median-bin one PUNCH FITS file into a fixed-width tomography TXT.")
+    ap.add_argument("--input", required=True, help="Input FITS file.")
     ap.add_argument("--product", required=True, choices=["CIM", "CTM", "PIM", "PTM", "PAM"])
-    ap.add_argument("--layer", required=True)
-    ap.add_argument("--output-dir", default=str(ROOT / "outputs" / "median"))
-    ap.add_argument("--bin-size-deg", type=float, default=1.0)
-    ap.add_argument("--convert-to-s10", action="store_true", help="Convert native brightness to S10 before writing")
-    ap.add_argument("--drop-zero-bins", action=argparse.BooleanOptionalAction, default=True)
-    ap.add_argument("--positive-only", action=argparse.BooleanOptionalAction, default=False)
+    ap.add_argument("--layer", required=True, help="Layer to read, for example brightness or Polar_pB.")
+    ap.add_argument("--output-dir", default=str(ROOT / "outputs" / "median"), help="Folder for the TXT output.")
+    ap.add_argument("--bin-size-deg", type=float, default=1.0, help="Sky-bin size in degrees.")
+    ap.add_argument("--convert-to-s10", action="store_true", help="Convert native brightness to S10 before writing.")
+    ap.add_argument("--drop-zero-bins", action=argparse.BooleanOptionalAction, default=True, help="Omit bins that print as zero.")
+    ap.add_argument("--positive-only", action=argparse.BooleanOptionalAction, default=False, help="Omit negative S10 values.")
     args = ap.parse_args()
 
     adapter = get_adapter(args.product)

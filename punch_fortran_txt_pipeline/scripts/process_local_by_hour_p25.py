@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""Turn an already-downloaded pile of PUNCH FITS files into hourly TXT maps."""
 from __future__ import annotations
 
 import argparse
@@ -70,28 +71,31 @@ def process_hour_job(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Process a local pile of PUNCH FITS files into one hourly p25 tomography TXT per hour."
+        description=(
+            "Scan local PUNCH FITS files, group them by UTC hour, and write "
+            "one p25-nearest-real-sample tomography TXT per hour."
+        )
     )
     parser.add_argument("--product", required=True, choices=sorted(DEFAULT_LAYERS))
-    parser.add_argument("--layer", default="", help="Layer name. Defaults by product.")
-    parser.add_argument("--input-root", default=".", help="Folder containing FITS files")
+    parser.add_argument("--layer", default="", help="Layer to read. If omitted, the product default is used.")
+    parser.add_argument("--input-root", default=".", help="Folder containing FITS files.")
     parser.add_argument(
         "--pattern",
         default="",
-        help="Glob pattern relative to input-root. Defaults to PUNCH_L3_PRODUCT_*.fits",
+        help="Glob pattern under input-root. Defaults to PUNCH_L3_PRODUCT_*.fits.",
     )
-    parser.add_argument("--recursive", action="store_true", help="Search input-root recursively")
-    parser.add_argument("--output-root", default="", help="Defaults to outputs/<product>_local_hourly_p25")
-    parser.add_argument("--hour-workers", type=int, default=1, help="Number of local hours to process at once")
-    parser.add_argument("--bin-size-deg", type=float, default=1.0)
-    parser.add_argument("--overwrite", action="store_true", help="Reprocess hours whose TXT already exists")
-    parser.add_argument("--min-files-per-hour", type=int, default=1)
+    parser.add_argument("--recursive", action="store_true", help="Search input-root recursively.")
+    parser.add_argument("--output-root", default="", help="Folder for TXT output. Defaults to outputs/<product>_local_hourly_p25.")
+    parser.add_argument("--hour-workers", type=int, default=1, help="Local hours to process at the same time.")
+    parser.add_argument("--bin-size-deg", type=float, default=1.0, help="Sky-bin size in degrees.")
+    parser.add_argument("--overwrite", action="store_true", help="Rebuild TXT files that already exist.")
+    parser.add_argument("--min-files-per-hour", type=int, default=1, help="Skip hours with fewer FITS files than this.")
     parser.add_argument(
         "--hour-filter",
         default="",
-        help="Optional regex matched against YYYYMMDDHH hour keys, useful for small test runs",
+        help="Regex matched against YYYYMMDDHH, useful for a tiny test run.",
     )
-    parser.add_argument("--max-hours", type=int, default=0, help="Optional cap on processed hours")
+    parser.add_argument("--max-hours", type=int, default=0, help="Stop after this many written hours; 0 means no cap.")
     args = parser.parse_args()
 
     product = args.product.upper()
@@ -163,7 +167,7 @@ def main() -> None:
                 else:
                     totals["hours_skipped"] += 1
                 print(f"[hour-done] {hour_key} files={file_count} seconds={elapsed:.1f}", flush=True)
-            except Exception as exc:  # noqa: BLE001 - keep batch runs moving.
+            except Exception as exc:  # noqa: BLE001 - report the bad hour and keep the batch moving.
                 totals["hours_skipped"] += 1
                 print(f"[hour-failed] {hour_key}: {exc}", flush=True)
 

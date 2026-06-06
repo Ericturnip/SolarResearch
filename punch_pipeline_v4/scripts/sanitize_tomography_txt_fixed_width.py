@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Clean TXT rows that would confuse the fixed-width Fortran reader."""
 from __future__ import annotations
 
 import argparse
@@ -67,17 +65,17 @@ def sanitize_file(path: Path, *, dry_run: bool, drop_zero: bool) -> tuple[int, i
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Check tomography TXT files and remove rows that cannot be read as fixed-width F8.2 brightness."
+        description="Remove tomography TXT rows whose brightness cannot fit the fixed-width F8.2 field."
     )
-    parser.add_argument("root", nargs="?", default="outputs/ctm_hourly_p25", help="TXT folder to scan recursively.")
-    parser.add_argument("--dry-run", action="store_true", help="Report what would change without editing files.")
+    parser.add_argument("root", nargs="?", default="outputs/ctm_hourly_p25")
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
         "--min-age-seconds",
         type=float,
         default=30.0,
-        help="Skip very recent files, useful while the processor is still writing.",
+        help="Skip files modified more recently than this, useful while the processor is still running.",
     )
-    parser.add_argument("--keep-zero", action="store_true", help="Keep rows whose printed brightness is 0.00.")
+    parser.add_argument("--keep-zero", action="store_true", help="Keep rows whose printed brightness is 0.00")
     args = parser.parse_args()
 
     root = Path(args.root).expanduser()

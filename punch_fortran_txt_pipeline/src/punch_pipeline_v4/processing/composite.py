@@ -20,20 +20,22 @@ def _statistic(stack: np.ndarray, method: str, percentile: float | None = None):
     raise ValueError(f"Unknown composite method: {method}")
 
 
-def _closest_source_time_map(stack, target, input_time_maps):
-    """For each output bin, choose time from input frame nearest to the composite value."""
+def _closest_source_values_and_time_map(stack, target, input_time_maps):
+    """Choose the real input sample nearest to the composite target for each bin."""
     diffs = np.abs(stack - target[None, :, :])
     diffs[~np.isfinite(diffs)] = np.inf
     good = np.any(np.isfinite(stack), axis=0) & np.isfinite(target)
     best_idx = np.full(target.shape, -1, dtype=int)
     if np.any(good):
         best_idx[good] = np.argmin(diffs[:, good], axis=0)
-    out = np.full(target.shape, "", dtype="<U30")
+    values = np.full(target.shape, np.nan, dtype=np.float64)
+    time_map = np.full(target.shape, "", dtype="<U30")
     for i, tm in enumerate(input_time_maps):
         source = tm if tm is not None else np.full(target.shape, "", dtype="<U30")
         m = best_idx == i
-        out[m] = source[m]
-    return out
+        values[m] = stack[i][m]
+        time_map[m] = source[m]
+    return values, time_map
 
 
 def composite_binned_maps(
@@ -67,11 +69,25 @@ def composite_binned_maps(
     with np.errstate(all="ignore"):
         comp = _statistic(stack, method, percentile=percentile)
 
-    time_map = _closest_source_time_map(stack, comp, [m.time_map for m in maps])
+    percentile_method = method.lower() in {"p30", "percentile"}
+    if percentile_method:
+        values, time_map = _closest_source_values_and_time_map(
+            stack,
+            comp,
+            [m.time_map for m in maps],
+        )
+    else:
+        values = comp
+        _, time_map = _closest_source_values_and_time_map(
+            stack,
+            comp,
+            [m.time_map for m in maps],
+        )
+
     out = BinnedMap(
         product=maps[0].product,
         layer_name=maps[0].layer_name,
-        values=comp,
+        values=values,
         hpln_centers=maps[0].hpln_centers,
         hplt_centers=maps[0].hplt_centers,
         timestamp=maps[0].timestamp,
@@ -79,7 +95,10 @@ def composite_binned_maps(
         radec_wcs=maps[0].radec_wcs,
         time_map=time_map,
         unit=maps[0].unit,
-        metadata={"composite_method": method},
+        metadata={
+            "composite_method": method,
+            "output_value": "nearest_real_sample_to_percentile" if percentile_method else "computed_statistic",
+        },
     )
     unique_times = sorted({str(t) for m in maps for t in ([m.timestamp.isot] if hasattr(m.timestamp, "isot") else [])})
     diag = before_diag | array_stats(stack, "stack_after_zero_filter") | array_stats(comp, "composite")

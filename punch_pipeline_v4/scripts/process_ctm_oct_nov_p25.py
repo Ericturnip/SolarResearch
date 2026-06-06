@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""Legacy CTM-only batch runner.
-
-The generic product runner is easier to maintain, but this script is kept for
-old commands and direct CTM testing.
-"""
 from __future__ import annotations
 
 import argparse
@@ -129,7 +124,7 @@ def download_one(remote: RemoteFile, path: Path, *, timeout: float, retries: int
                 raise RuntimeError("downloaded file has zero bytes")
             tmp.replace(path)
             return path
-        except Exception as exc:  # noqa: BLE001 - log the failed attempt and keep the run alive.
+        except Exception as exc:  # noqa: BLE001 - overnight runner should keep going.
             if tmp.exists():
                 tmp.unlink()
             if attempt == retries:
@@ -157,7 +152,7 @@ def download_hour(
             remote = futures[future]
             try:
                 paths.append(future.result())
-            except Exception as exc:  # noqa: BLE001 - one bad download should not stop the hour.
+            except Exception as exc:  # noqa: BLE001 - skip bad files, keep the night moving.
                 print(f"[download-failed] {remote.name}: {exc}", flush=True)
     return sorted(paths)
 
@@ -231,23 +226,21 @@ def p25_composite(bmaps: list[BinnedMap]) -> BinnedMap:
     stack = np.stack([np.asarray(bmap.values, dtype=np.float64) for bmap in bmaps], axis=0)
     stack[np.isfinite(stack) & (stack == 0.0)] = np.nan
     with np.errstate(all="ignore"):
-        p25_target = np.nanpercentile(stack, 25.0, axis=0)
+        values = np.nanpercentile(stack, 25.0, axis=0)
 
-    # The TXT row should pair brightness with the time of the frame it came from.
-    diffs = np.abs(stack - p25_target[None, :, :])
+    # Preserve the timestamp nearest to each percentile value for the TXT Time column.
+    diffs = np.abs(stack - values[None, :, :])
     diffs[~np.isfinite(diffs)] = np.inf
-    good = np.any(np.isfinite(stack), axis=0) & np.isfinite(p25_target)
-    best_idx = np.full(p25_target.shape, -1, dtype=int)
+    good = np.any(np.isfinite(stack), axis=0) & np.isfinite(values)
+    best_idx = np.full(values.shape, -1, dtype=int)
     if np.any(good):
         best_idx[good] = np.argmin(diffs[:, good], axis=0)
-    values = np.full(p25_target.shape, np.nan, dtype=np.float64)
-    time_map = np.full(p25_target.shape, "", dtype="<U30")
+    time_map = np.full(values.shape, "", dtype="<U30")
     for i, bmap in enumerate(bmaps):
         source = bmap.time_map
         if source is None:
-            source = np.full(p25_target.shape, bmap.timestamp.to_datetime().isoformat(), dtype="<U30")
+            source = np.full(values.shape, bmap.timestamp.to_datetime().isoformat(), dtype="<U30")
         mask = best_idx == i
-        values[mask] = stack[i][mask]
         time_map[mask] = source[mask]
 
     first = bmaps[0]
@@ -262,11 +255,7 @@ def p25_composite(bmaps: list[BinnedMap]) -> BinnedMap:
         radec_wcs=first.radec_wcs,
         time_map=time_map,
         unit="S10",
-        metadata={
-            "composite_method": "p25",
-            "drop_zero_before_stat": True,
-            "output_value": "nearest_real_sample_to_p25",
-        },
+        metadata={"composite_method": "p25", "drop_zero_before_stat": True},
     )
 
 
@@ -292,7 +281,7 @@ def process_hour(
                 grid_cache[key] = prepare_grid(frame, bin_size_deg)
                 print(f"[grid-cache] cached CTM grid #{len(grid_cache)} shape={grid_cache[key].shape}", flush=True)
             bmaps.append(median_bin_fast(frame, grid_cache[key]))
-        except Exception as exc:  # noqa: BLE001 - one bad frame should not cost the whole hour.
+        except Exception as exc:  # noqa: BLE001 - bad frame should not stop the run.
             print(f"[process-file-failed] {path.name}: {exc}", flush=True)
 
     if not bmaps:
@@ -353,27 +342,27 @@ def process_hour_job(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Download CTM files from NASA and write hourly p25-nearest-real-sample TXT maps."
+        description="Download and process CTM Oct/Nov hourly p25 composites into daily TXT folders."
     )
-    parser.add_argument("--start-date", default="2025-10-01", help="First UTC day to process, YYYY-MM-DD.")
-    parser.add_argument("--end-date", default="2025-11-30", help="Last UTC day to process, YYYY-MM-DD.")
+    parser.add_argument("--start-date", default="2025-10-01", help="YYYY-MM-DD inclusive")
+    parser.add_argument("--end-date", default="2025-11-30", help="YYYY-MM-DD inclusive")
     parser.add_argument("--base-url", default=DEFAULT_BASE_URL)
     parser.add_argument("--output-root", default=str(ROOT / "outputs" / "ctm_hourly_p25"))
     parser.add_argument("--cache-root", default=str(ROOT / "outputs" / "_ctm_download_cache"))
-    parser.add_argument("--download-workers", type=int, default=8, help="Parallel FITS downloads inside each hour.")
-    parser.add_argument("--hour-workers", type=int, default=1, help="Hours to download and process at the same time.")
+    parser.add_argument("--download-workers", type=int, default=8, help="Parallel downloads per hour")
+    parser.add_argument("--hour-workers", type=int, default=1, help="Number of hours to download/process at once")
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--retries", type=int, default=4)
     parser.add_argument("--bin-size-deg", type=float, default=1.0)
-    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour finishes.")
-    parser.add_argument("--overwrite", action="store_true", help="Rebuild TXT files that already exist.")
+    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour")
+    parser.add_argument("--overwrite", action="store_true", help="Reprocess hours whose TXT already exists")
     parser.add_argument("--min-files-per-hour", type=int, default=1)
     parser.add_argument(
         "--hour-filter",
         default="",
-        help="Regex matched against YYYYMMDDHH, useful for a tiny test run.",
+        help="Optional regex matched against YYYYMMDDHH hour keys, useful for small test runs",
     )
-    parser.add_argument("--max-hours", type=int, default=0, help="Stop after this many written hours; 0 means no cap.")
+    parser.add_argument("--max-hours", type=int, default=0, help="Optional cap on processed hours")
     args = parser.parse_args()
 
     start = parse_ymd(args.start_date)
@@ -457,7 +446,7 @@ def main() -> None:
                         else:
                             totals["hours_skipped"] += 1
                         print(f"[hour-done] {hour_key} files={file_count} seconds={elapsed:.1f}", flush=True)
-                    except Exception as exc:  # noqa: BLE001 - report the bad hour and keep the batch moving.
+                    except Exception as exc:  # noqa: BLE001 - keep overnight run moving.
                         totals["hours_skipped"] += 1
                         print(f"[hour-failed] {hour_key}: {exc}", flush=True)
 

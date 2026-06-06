@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""Download PUNCH L3 files and write one fixed-width TXT map per hour.
+
+This is the main batch script. It is deliberately forgiving: missing NASA days,
+bad FITS files, and failed hours are logged, then the run moves on.
+"""
 from __future__ import annotations
 
 import argparse
@@ -165,7 +170,7 @@ def process_hour(
                     bin_size_deg=bin_size_deg,
                 )
             )
-        except Exception as exc:  # noqa: BLE001 - bad frame should not stop the run.
+        except Exception as exc:  # noqa: BLE001 - one bad frame should not cost the whole hour.
             print(f"[process-file-failed] {path.name}: {exc}", flush=True)
 
     if not bmaps:
@@ -229,29 +234,32 @@ def process_hour_job(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Download and process any registered PUNCH product into hourly p25 tomography TXT files."
+        description=(
+            "Download a PUNCH product from NASA, bin each frame to the sky grid, "
+            "and write one hourly p25-nearest-real-sample TXT map."
+        )
     )
     parser.add_argument("--product", required=True, choices=sorted(DEFAULT_LAYERS))
-    parser.add_argument("--layer", default="", help="Layer name. Defaults by product.")
-    parser.add_argument("--start-date", default="2025-10-01", help="YYYY-MM-DD inclusive")
-    parser.add_argument("--end-date", default="2025-11-30", help="YYYY-MM-DD inclusive")
-    parser.add_argument("--base-url", default="", help="Product directory URL. Defaults to NASA /punch/3/PRODUCT")
-    parser.add_argument("--output-root", default="", help="Defaults to outputs/<product>_hourly_p25")
-    parser.add_argument("--cache-root", default=str(ROOT / "outputs" / "_download_cache"))
-    parser.add_argument("--download-workers", type=int, default=8, help="Parallel downloads per hour")
-    parser.add_argument("--hour-workers", type=int, default=1, help="Number of hours to download/process at once")
-    parser.add_argument("--timeout", type=float, default=60.0)
-    parser.add_argument("--retries", type=int, default=4)
-    parser.add_argument("--bin-size-deg", type=float, default=1.0)
-    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour")
-    parser.add_argument("--overwrite", action="store_true", help="Reprocess hours whose TXT already exists")
-    parser.add_argument("--min-files-per-hour", type=int, default=1)
+    parser.add_argument("--layer", default="", help="Layer to read. If omitted, the product default is used.")
+    parser.add_argument("--start-date", default="2025-10-01", help="First UTC day to process, YYYY-MM-DD.")
+    parser.add_argument("--end-date", default="2025-11-30", help="Last UTC day to process, YYYY-MM-DD.")
+    parser.add_argument("--base-url", default="", help="Override the NASA product URL.")
+    parser.add_argument("--output-root", default="", help="Folder for TXT output. Defaults to outputs/<product>_hourly_p25.")
+    parser.add_argument("--cache-root", default=str(ROOT / "outputs" / "_download_cache"), help="Temporary FITS download folder.")
+    parser.add_argument("--download-workers", type=int, default=8, help="Parallel FITS downloads inside each hour.")
+    parser.add_argument("--hour-workers", type=int, default=1, help="Hours to download and process at the same time.")
+    parser.add_argument("--timeout", type=float, default=60.0, help="Network timeout in seconds.")
+    parser.add_argument("--retries", type=int, default=4, help="Download/listing attempts before giving up on a file.")
+    parser.add_argument("--bin-size-deg", type=float, default=1.0, help="Sky-bin size in degrees.")
+    parser.add_argument("--keep-fits", action="store_true", help="Keep downloaded FITS files after each hour finishes.")
+    parser.add_argument("--overwrite", action="store_true", help="Rebuild TXT files that already exist.")
+    parser.add_argument("--min-files-per-hour", type=int, default=1, help="Skip hours with fewer FITS files than this.")
     parser.add_argument(
         "--hour-filter",
         default="",
-        help="Optional regex matched against YYYYMMDDHH hour keys, useful for small test runs",
+        help="Regex matched against YYYYMMDDHH, useful for a tiny test run.",
     )
-    parser.add_argument("--max-hours", type=int, default=0, help="Optional cap on processed hours")
+    parser.add_argument("--max-hours", type=int, default=0, help="Stop after this many written hours; 0 means no cap.")
     args = parser.parse_args()
 
     product = args.product.upper()
@@ -340,7 +348,7 @@ def main() -> None:
                         else:
                             totals["hours_skipped"] += 1
                         print(f"[hour-done] {hour_key} files={file_count} seconds={elapsed:.1f}", flush=True)
-                    except Exception as exc:  # noqa: BLE001 - keep overnight run moving.
+                    except Exception as exc:  # noqa: BLE001 - batch runs should report failures and keep moving.
                         totals["hours_skipped"] += 1
                         print(f"[hour-failed] {hour_key}: {exc}", flush=True)
 

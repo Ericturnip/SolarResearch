@@ -59,8 +59,7 @@ def write_tomography_txt(
             valid &= np.round(values, 2) != 0.0
     pre_width_valid = valid.copy()
     if enforce_fixed_width:
-        # Brightness is written as F8.2 for the downstream fixed-width Fortran reader.
-        # Drop values that would overflow into adjacent columns.
+        # The Fortran reader expects brightness in an F8.2 field.
         valid &= (values >= -9999.99) & (values <= 99999.99)
 
     with output_path.open("w") as f:

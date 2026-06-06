@@ -34,6 +34,7 @@ def write_tomography_txt(
     positive_only: bool = False,
     s10_min: float = -500.0,
     s10_max: float = 2000.0,
+    enforce_fixed_width: bool = True,
 ) -> dict:
     """Write tomography-style TXT from a binned map.
 
@@ -55,7 +56,12 @@ def write_tomography_txt(
     elif omit_empty_bins:
         valid &= np.isfinite(values)
         if drop_zero_bins:
-            valid &= values != 0.0
+            valid &= np.round(values, 2) != 0.0
+    pre_width_valid = valid.copy()
+    if enforce_fixed_width:
+        # Brightness is written as F8.2 for the downstream fixed-width Fortran reader.
+        # Drop values that would overflow into adjacent columns.
+        valid &= (values >= -9999.99) & (values <= 99999.99)
 
     with output_path.open("w") as f:
         f.write(f"{year_doy_fraction_string(bmap.timestamp)}\n")
@@ -67,5 +73,6 @@ def write_tomography_txt(
         "rows_written": int(np.sum(valid)),
         "candidate_rows": int(values.size),
         "removed_rows": int(values.size - np.sum(valid)),
+        "removed_fixed_width_overflow": int(np.sum(pre_width_valid) - np.sum(valid)),
         "unique_timestamps_written": int(len(set(times[valid]))),
     }
